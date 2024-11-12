@@ -24,12 +24,13 @@ def test_substrait_extension_coverage():
     all_test_files = load_all_testcases(test_case_dir)
     coverage = get_test_coverage(all_test_files, registry)
 
-    assert coverage.test_count >= 49
-    assert coverage.num_covered_function_variants >= 18
+    assert coverage.test_count >= 618
+    assert coverage.num_covered_function_variants >= 188
     assert coverage.total_function_variants >= 510
-    assert (
-        coverage.total_function_variants - coverage.num_covered_function_variants
-    ) <= 492
+    assert (coverage.total_function_variants - coverage.num_covered_function_variants) <= 322, (
+        f"Coverage gap too large: {coverage.total_function_variants - coverage.num_covered_function_variants} "
+        f"function variants with no tests, out of {coverage.total_function_variants} total function variants."
+    )
 
 
 def test_build_type_to_short_type():
