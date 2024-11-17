@@ -9,7 +9,7 @@ regexp_string_split('Hello'::str, 'Hel+'::str) = ['', 'o']::list<str>
 regexp_string_split('HHHelloooo'::str, 'Hel+'::str) = ['HH', 'oooo']::list<str>
 
 # null_input: Examples with null as input
-regexp_string_split(null::str, 'Hel+'::str) = null::str
+regexp_string_split(null::str, 'Hel+'::str) = [null]::list<str>
 
 # position_anchors: Examples with position anchors
 regexp_string_split('abcdefg'::str, '\Aabc'::str) = ['', 'defg']::list<str>
