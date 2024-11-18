@@ -1,12 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
-import pytest
 
 from tests.coverage.case_file_parser import load_all_testcases
 from tests.coverage.coverage import get_test_coverage
 from tests.coverage.extensions import build_type_to_short_type
 from tests.coverage.extensions import Extension
-from tests.coverage.nodes import TestCase, CaseLiteral
 
 
 # NOTE: this test is run as part of pre-commit hook
@@ -60,26 +58,3 @@ def test_build_type_to_short_type():
     assert long_to_short["list"] == "list"
     assert long_to_short["map"] == "map"
     assert long_to_short["struct"] == "struct"
-
-@pytest.mark.parametrize(
-    "func_name, func_args, func_ret, func_uri, expected_failure",
-    [
-        # lt for i8 with correct uri
-        ("lt", ["i8", "i8"], "bool", "/extensions/functions_comparison.yaml", False),
-        ("add", ["i8", "i8"], "i8", "/extensions/functions_arithmetic.yaml", False),
-        ("add", ["dec", "dec"], "dec", "/extensions/functions_arithmetic_decimal.yaml", False),
-        ("bitwise_xor", ["dec", "dec"], "dec", "/extensions/functions_arithmetic_decimal.yaml", False),
-        # negative case, lt for i8 with wrong uri
-        ("lt", ["i8", "i8"], "bool", "/extensions/functions_datetime.yaml", True),
-        ("add", ["i8", "i8"], "i8", "/extensions/functions_arithmetic_decimal.yaml", True),
-        ("add", ["dec", "dec"], "dec", "/extensions/functions_arithmetic.yaml", True),
-        ("max", ["dec", "dec"], "dec", "/extensions/functions_arithmetic.yaml", True),
-    ]
-)
-def test_uri_match_in_get_function(func_name, func_args, func_ret, func_uri, expected_failure):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    extensions_path = os.path.join(script_dir, "../extensions")
-    registry = Extension.read_substrait_extensions(extensions_path)
-
-    function = registry.get_function(func_name, func_uri, func_args, func_ret)
-    assert (function is None) == expected_failure

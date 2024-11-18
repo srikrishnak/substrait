@@ -123,11 +123,10 @@ class Extension:
         return overloads
 
     @staticmethod
-    def add_functions_to_map(func_list, function_map, suffix, extension):
+    def add_functions_to_map(func_list, function_map, suffix, extension, uri):
         dup_idx = 0
         for func in func_list:
             name = func["name"]
-            uri = extension[5:]  # strip the ../..
             if name in function_map:
                 debug(
                     f"Duplicate function name: {name} renaming to {name}_{suffix} extension: {extension}"
@@ -146,32 +145,33 @@ class Extension:
     @staticmethod
     def read_substrait_extensions(dir_path: str):
         # read files from extensions directory
-        extensions = []
+        extensions = {}
         for root, dirs, files in os.walk(dir_path):
             for file in files:
                 if file.endswith(".yaml") and file.startswith("functions_"):
-                    extensions.append(os.path.join(root, file))
+                    extensions[os.path.join(root, file)] = '/extensions/' + file
 
-        extensions.sort()
+        extensions = dict(sorted(extensions.items()))
 
         scalar_functions = {}
         aggregate_functions = {}
         window_functions = {}
         dependencies = {}
         # convert yaml file to a python dictionary
-        for extension in extensions:
+        for extension, uri in extensions.items():
+            extension = extension
             suffix = extension[:-5]  # strip .yaml at the end of the extension
             suffix = suffix[
                 suffix.rfind("/") + 1 :
             ]  # strip the path and get the name of the extension
             suffix = suffix[suffix.find("_") + 1 :]  # get the suffix after the last _
 
-            dependencies[suffix] = Extension.get_base_uri() + extension
+            dependencies[suffix] = Extension.get_base_uri() + uri
             with open(extension, "r") as fh:
                 data = yaml.load(fh, Loader=yaml.FullLoader)
                 if "scalar_functions" in data:
                     Extension.add_functions_to_map(
-                        data["scalar_functions"], scalar_functions, suffix, extension
+                        data["scalar_functions"], scalar_functions, suffix, extension, uri
                     )
                 if "aggregate_functions" in data:
                     Extension.add_functions_to_map(
@@ -179,10 +179,11 @@ class Extension:
                         aggregate_functions,
                         suffix,
                         extension,
+                        uri,
                     )
                 if "window_functions" in data:
                     Extension.add_functions_to_map(
-                        data["window_functions"], scalar_functions, suffix, extension
+                        data["window_functions"], scalar_functions, suffix, extension, uri
                     )
 
         return FunctionRegistry(
@@ -248,15 +249,13 @@ class FunctionRegistry:
 
     def add_functions(self, functions, func_type):
         for func in functions.values():
-            index = func['uri'].rfind('/extensions')
-            func_uri = func['uri'][index:] if index != -1 else ""
-            self.extensions.add(func_uri)
+            self.extensions.add(func['uri'])
             f_name = func["name"]
             fun_arr = self.registry.get(f_name, [])
             for overload in func["overloads"]:
                 function = FunctionVariant(
                     func["name"],
-                    func_uri,
+                    func['uri'],
                     "",
                     overload.args,
                     overload.return_type,
