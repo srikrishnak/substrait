@@ -3,6 +3,7 @@ import os
 import yaml
 
 from tests.coverage.antlr_parser.FuncTestCaseLexer import FuncTestCaseLexer
+from tests.coverage.nodes import SubstraitError
 
 enable_debug = False
 
@@ -247,13 +248,15 @@ class FunctionRegistry:
 
     def add_functions(self, functions, func_type):
         for func in functions.values():
-            self.extensions.add(func["uri"])
+            index = func['uri'].rfind('/extensions')
+            func_uri = func['uri'][index:] if index != -1 else ""
+            self.extensions.add(func_uri)
             f_name = func["name"]
             fun_arr = self.registry.get(f_name, [])
             for overload in func["overloads"]:
                 function = FunctionVariant(
                     func["name"],
-                    func["uri"],
+                    func_uri,
                     "",
                     overload.args,
                     overload.return_type,
@@ -263,13 +266,43 @@ class FunctionRegistry:
                 fun_arr.append(function)
             self.registry[f_name] = fun_arr
 
-    def get_function(self, name: str, args: object) -> [FunctionVariant]:
+    @staticmethod
+    def is_type_any(func_arg_type):
+        return func_arg_type[:3] == "any"
+
+    @staticmethod
+    def is_same_type(func_arg_type, arg_type):
+        arg_type_base = arg_type.split("<")[0]
+        if func_arg_type == arg_type_base:
+            return True
+        return FunctionRegistry.is_type_any(func_arg_type)
+
+    def get_function(self, name: str, uri: str, args: object, return_type) -> [FunctionVariant]:
         functions = self.registry.get(name, None)
         if functions is None:
             return None
         for function in functions:
+            if uri != function.uri:
+                continue
+            if not isinstance(return_type, SubstraitError) and not self.is_same_type(
+                function.return_type, return_type
+            ):
+                continue
             if function.args == args:
                 return function
+            if len(function.args) != len(args) and not (
+                function.variadic and len(args) >= len(function.args)
+            ):
+                continue
+            is_match = True
+            for i, arg in enumerate(args):
+                j = i if i < len(function.args) else len(function.args) - 1
+                if not self.is_same_type(function.args[j], arg):
+                    is_match = False
+                    break
+            if is_match:
+                return function
+        return None
 
     def get_extension_list(self):
         return list(self.extensions)
